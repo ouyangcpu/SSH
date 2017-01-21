@@ -1,0 +1,149 @@
+http://www.cnblogs.com/Richardzhu/p/3364909.html
+Hive与数据库的异同
+
+http://blog.csdn.net/hguisu/article/details/7256833
+Hadoop Hive sql语法详解
+
+http://www.cnblogs.com/HondaHsu/p/4346354.html
+Hadoop Hive基础sql语法
+
+Hive常用的SQL命令操作 (2012-09-20 17:30:04)转载▼
+标签： 杂谈 	分类： Internet和计算机
+Hive提供了很多的函数，可以在命令行下show functions罗列所有的函数，你会发现这些函数名与mysql的很相近，绝大多数相同的，可通过describe function functionName 查看函数使用方法。
+
+hive支持的数据类型很简单就INT(4 byte integer),BIGINT(8 byte integer),FLOAT(single precision),DOUBLE(double precision),BOOLEAN,STRING等原子类型，连日期时间类型也不支持，但通过to_date、unix_timestamp、date_diff、date_add、date_sub等函数就能完成mysql同样的时间日期复杂操作。
+如下示例：
+select * from tablename where to_date(cz_time) > to_date('2050-12-31');
+select * from tablename where unix_timestamp(cz_time) > unix_timestamp('2050-12-31 15:32:28');
+
+分区
+hive与mysql分区有些区别，mysql分区是用表结构中的字段来分区(range,list,hash等)，而hive不同，他需要手工指定分区列，这个列是独立于表结构，但属于表中一列，在加载数据时手动指定分区。
+
+创建表
+hive> CREATE TABLE pokes (foo INT, bar STRING COMMENT 'This is bar'); 
+ 
+创建表并创建索引字段ds
+hive> CREATE TABLE invites (foo INT, bar STRING) PARTITIONED BY (ds STRING); 
+ 
+显示所有表
+hive> SHOW TABLES;
+ 
+按正条件（正则表达式）显示表，
+hive> SHOW TABLES '.*s';
+ 
+表添加一列 
+hive> ALTER TABLE pokes ADD COLUMNS (new_col INT);
+ 
+添加一列并增加列字段注释
+hive> ALTER TABLE invites ADD COLUMNS (new_col2 INT COMMENT 'a comment');
+ 
+更改表名
+hive> ALTER TABLE events RENAME TO 3koobecaf;
+ 
+删除列
+hive> DROP TABLE pokes;
+ 
+元数据存储
+将本地文件中的数据加载到表中
+hive> LOAD DATA LOCAL INPATH './examples/files/kv1.txt' OVERWRITE INTO TABLE pokes; 
+ 
+加载本地数据，同时给定分区信息
+hive> LOAD DATA LOCAL INPATH './examples/files/kv2.txt' OVERWRITE INTO TABLE invites PARTITION (ds='2008-08-15');
+ 
+加载DFS数据 ，同时给定分区信息
+hive> LOAD DATA INPATH '/user/myname/kv2.txt' OVERWRITE INTO TABLE invites PARTITION (ds='2008-08-15');
+The above command will load data from an HDFS file/directory to the table. Note that loading data from HDFS will result in moving the file/directory. As a result, the operation is almost instantaneous. 
+ 
+SQL 操作
+按先件查询
+hive> SELECT a.foo FROM invites a WHERE a.ds='';
+ 
+将查询数据输出至目录
+hive> INSERT OVERWRITE DIRECTORY '/tmp/hdfs_out' SELECT a.* FROM invites a WHERE a.ds='';
+ 
+将查询结果输出至本地目录
+hive> INSERT OVERWRITE LOCAL DIRECTORY '/tmp/local_out' SELECT a.* FROM pokes a;
+ 
+选择所有列到本地目录 
+hive> INSERT OVERWRITE TABLE events SELECT a.* FROM profiles a;
+hive> INSERT OVERWRITE TABLE events SELECT a.* FROM profiles a WHERE a.key < 100; 
+hive> INSERT OVERWRITE LOCAL DIRECTORY '/tmp/reg_3' SELECT a.* FROM events a;
+hive> INSERT OVERWRITE DIRECTORY '/tmp/reg_4' select a.invites, a.pokes FROM profiles a;
+hive> INSERT OVERWRITE DIRECTORY '/tmp/reg_5' SELECT COUNT(1) FROM invites a WHERE a.ds='';
+hive> INSERT OVERWRITE DIRECTORY '/tmp/reg_5' SELECT a.foo, a.bar FROM invites a;
+hive> INSERT OVERWRITE LOCAL DIRECTORY '/tmp/sum' SELECT SUM(a.pc) FROM pc1 a;
+ 
+将一个表的统计结果插入另一个表中
+hive> FROM invites a INSERT OVERWRITE TABLE events SELECT a.bar, count(1) WHERE a.foo > 0 GROUP BY a.bar;
+hive> INSERT OVERWRITE TABLE events SELECT a.bar, count(1) FROM invites a WHERE a.foo > 0 GROUP BY a.bar;
+JOIN
+hive> FROM pokes t1 JOIN invites t2 ON (t1.bar = t2.bar) INSERT OVERWRITE TABLE events SELECT t1.bar, t1.foo, t2.foo;
+ 
+将多表数据插入到同一表中
+FROM src
+INSERT OVERWRITE TABLE dest1 SELECT src.* WHERE src.key < 100
+INSERT OVERWRITE TABLE dest2 SELECT src.key, src.value WHERE src.key >= 100 and src.key < 200
+INSERT OVERWRITE TABLE dest3 PARTITION(ds='2008-04-08', hr='12') SELECT src.key WHERE src.key >= 200 and src.key < 300
+INSERT OVERWRITE LOCAL DIRECTORY '/tmp/dest4.out' SELECT src.value WHERE src.key >= 300;
+ 
+将文件流直接插入文件
+hive> FROM invites a INSERT OVERWRITE TABLE events SELECT TRANSFORM(a.foo, a.bar) AS (oof, rab) USING '/bin/cat' WHERE a.ds > '2008-08-09';
+This streams the data in the map phase through the script /bin/cat (like hadoop streaming). Similarly - streaming can be used on the reduce side (please see the Hive Tutorial or examples) 
+ 
+实际示例
+创建一个表
+CREATE TABLE u_data (
+userid INT,
+movieid INT,
+rating INT,
+unixtime STRING)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t'
+STORED AS TEXTFILE;
+ 
+下载示例数据文件，并解压缩
+wget http://www.grouplens.org/system/files/ml-data.tar__0.gz
+tar xvzf ml-data.tar__0.gz
+ 
+加载数据到表中
+LOAD DATA LOCAL INPATH 'ml-data/u.data'
+OVERWRITE INTO TABLE u_data;
+ 
+统计数据总量
+SELECT COUNT(1) FROM u_data;
+ 
+现在做一些复杂的数据分析
+创建一个 weekday_mapper.py: 文件，作为数据按周进行分割 
+import sys
+import datetime
+for line in sys.stdin:
+line = line.strip()
+userid, movieid, rating, unixtime = line.split('\t')
+ 
+生成数据的周信息
+weekday = datetime.datetime.fromtimestamp(float(unixtime)).isoweekday()
+print '\t'.join([userid, movieid, rating, str(weekday)])
+ 
+使用映射脚本
+//创建表，按分割符分割行中的字段值
+CREATE TABLE u_data_new (
+userid INT,
+movieid INT,
+rating INT,
+weekday INT)
+ROW FORMAT DELIMITED
+FIELDS TERMINATED BY '\t';
+ 
+//将python文件加载到系统
+add FILE weekday_mapper.py;
+ 
+将数据按周进行分割
+INSERT OVERWRITE TABLE u_data_new
+SELECT
+TRANSFORM (userid, movieid, rating, unixtime)
+USING 'python weekday_mapper.py'
+AS (userid, movieid, rating, weekday)
+FROM u_data;
+SELECT weekday, COUNT(1)
+FROM u_data_new
+GROUP BY weekday;
