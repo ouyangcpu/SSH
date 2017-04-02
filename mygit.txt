@@ -2,3 +2,5 @@ new change.
 test store username and password.
 test result.
 select description,(case when description  is null then 0 else description end) Description from d_category;语法规则[字段,(case when 字段 is null then 0 else 字段 end) 字段标识。
+select (case when description  is null then 0 else description end) description from d_category;
+(case when jitter_count is null then 0 else jitter_count end) jitter_count
