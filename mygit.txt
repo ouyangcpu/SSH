@@ -6,3 +6,365 @@ select (case when description  is null then 0 else description end) description 
 (case when jitter_count is null then 0 else jitter_count end) jitter_count
 https://github.com/extjs-doc-cn/ext4api
 https://wenku.baidu.com/view/59c6474e33687e21af45a996.html
+前台代码：
+
+    <script type="text/javascript">
+        function orderExport(){
+        var orderNumber = $("#orderNumber").val();
+        var userName = $("#userName").val();
+        var mobile = $("#mobile").val();
+        var status = $("#status").val();
+        var startTime = $("#startTime").val();
+        var endTime = $("#endTime").val(); 
+        window.location.href = "/orderExport.html?orderNumber="+orderNumber+"&      userName="+userName+
+                  "&mobile="+mobile+"&status="+status+"&startTime="+startTime+"&endTime="+endTime; 
+        }
+    </script>
+
+     <body>
+        <div>
+           <input type="button" class="searchbtns search" value="订单导出" onclick="orderExport()">//点击导出按钮调用function orderExport()需要查询的数据的条件带过去
+        </div>
+     </body>
+
+后台代码：
+
+      @RequestMapping("/orderExport.html")
+    public void orderExport( HttpServletRequest request,
+            @RequestParam(value="userName",required = false)String userName,
+            @RequestParam(value="mobile",required = false)String mobile,
+            @RequestParam(value="orderNumber",required = false)String 
+            @RequestParam(value="status",required = false)Byte status,
+            @RequestParam(value = "startTime", required = false) String startTime1,
+            @RequestParam(value = "endTime", required = false) String endTime1,
+            HttpServletResponse response){
+                //此处为查询的条件      
+            SuBusiness business=WebUtil.getLoginUser(request);//登录人信息
+            business=SuBusinessService.selectByPhone(business.getMobile());
+            Map<String,Object> map=new HashMap<String,Object>();
+            map.put("sellerBusinessId", business.getId());
+            if(StringUtils.isNotBlank(userName)){           
+                map.put("userName", userName);
+            }else{          
+                map.put("userName", null);
+            }
+            if(StringUtils.isNotBlank(mobile)){         
+                map.put("mobile", mobile);
+            }else{          
+                map.put("mobile", null);
+            }
+            if(StringUtils.isNotBlank(orderNumber)){            
+                map.put("orderNumber", orderNumber);
+            }else{          
+                map.put("orderNumber", null);
+            }
+            Date startTime = null;
+            Date endTime = null;
+            if(StringUtils.isNotBlank(startTime1)){
+                String startTimeStr = startTime1+" 00:00:00";
+                String endTimeStr = "";
+                if(StringUtils.isBlank(endTime1)){
+                    endTimeStr =  DateUtil.format(new Date(),"yyyy-MM-dd")+" 23:59:59";
+                }else{
+                    endTimeStr = endTime1+" 23:59:59";
+                }
+                startTime = DateUtil.parse(startTimeStr, "yyyy-MM-dd HH:mm:ss");
+                endTime = DateUtil.parse(endTimeStr, "yyyy-MM-dd HH:mm:ss");
+                map.put("startTime", startTime);
+                map.put("endTime", endTime);
+            }else{
+                map.put("startTime", null);
+                map.put("endTime", null);
+            }
+            if(status.intValue()!=99){
+                map.put("status", status);  
+            }else {
+                if (status.intValue()==0) {
+                    map.put("status", 0);
+                }else {
+                    map.put("status", null);
+                }
+
+            }
+            //进行查询并导出
+            List<Order> orderList = orderService.queryOnlineList(map);
+            if (orderList != null && orderList.size()>0) {//查询的数据不为空就对数据进行导出
+                //导出文件的标题
+                String title = "商城订单"+DateUtil.format(new Date(), "yyyyMMdd")+".xls";
+                //设置表格标题行
+                String[] headers = new String[] {"序号","订单号", "花匠名称","订单时间","状态", "消费总额", "退款金额"};
+                List<Object[]> dataList = new ArrayList<Object[]>();
+                Object[] objs = null;
+                for (Order order : orderList) {//循环每一条数据
+                    objs = new Object[headers.length];
+                    objs[0] = order.getOrderNumber();//序号
+                    objs[1] = order.getOrderNumber();//订单号
+                    objs[2] = order.getUser().getRealname()+"  "+order.getUser().getMobile();//花匠信息
+                    if (order.getCreateDateTime() != null) {
+                        objs[3] = DateUtil.format(order.getCreateDateTime(), "yyyy-MM-dd HH:mm:ss");//订单时间                  
+                    }else {
+                        objs[3] = "无";
+                    }
+
+                    if (order.getStatus().intValue() == -1) {                   
+                        objs[4] = "未发货，申请退款";//状态
+                    }
+                    if (order.getStatus().intValue() == 0) {                    
+                        objs[4] = "已取消";//状态
+                    }
+                    if (order.getStatus().intValue() == 1) {                    
+                        objs[4]="待支付";//状态
+                    }
+                    if (order.getStatus().intValue() == 2) {                    
+                        objs[4] = "待发货";//状态
+                    }
+
+                    objs[5]=order.getPay();//消费金额
+                    if (order.getRefundMoney() != null) {
+                        objs[6] = order.getRefundMoney();//退货金额         
+                    }else {
+                        objs[6] = "0.0";
+                    }
+                    //数据添加到excel表格
+                    dataList.add(objs);
+                }
+                //使用流将数据导出
+                OutputStream out = null;
+                try {
+                    //防止中文乱码
+                    String headStr = "attachment; filename=\"" + new String( title.getBytes("gb2312"), "ISO8859-1" ) + "\"";
+                    response.setContentType("octets/stream");
+                    response.setContentType("APPLICATION/OCTET-STREAM");
+                    response.setHeader("Content-Disposition", headStr);
+                    out = response.getOutputStream();
+                    //ExportExcel ex = new ExportExcel(title, headers, dataList);//有标题
+                    ExportExcelSeedBack ex = new ExportExcelSeedBack(title, headers, dataList);//没有标题
+                    ex.export(out);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+    } 
+需要调用的工具类：ExportExcelSeedBack
+         如上操作会出现ExportExcelSeedBack错误：原因是因为是没有定义他的工具类，工具类如下：
+
+    public class ExportExcelSeedBack {
+
+    //显示的导出表的标题
+    private String title;
+    //导出表的列名
+    private String[] rowName ;
+
+    private List<Object[]>  dataList = new ArrayList<Object[]>();
+
+    HttpServletResponse  response;
+
+
+    //构造方法，传入要导出的数据
+    public ExportExcelSeedBack(String title,String[] rowName,List<Object[]> dataList){
+        this.dataList = dataList;
+        this.rowName = rowName;
+        this.title = title;
+    }
+
+    /*
+     * 导出数据
+     * */
+    public void export(OutputStream out) throws Exception{
+        try{
+            HSSFWorkbook workbook = new HSSFWorkbook();                     // 创建工作簿对象
+            HSSFSheet sheet = workbook.createSheet(title);                  // 创建工作表
+
+            // 产生表格标题行
+    //          HSSFRow rowm = sheet.createRow(0);
+    //          HSSFCell cellTiltle = rowm.createCell(0);
+
+            //sheet样式定义【getColumnTopStyle()/getStyle()均为自定义方法 - 在下面  - 可扩展】
+            HSSFCellStyle columnTopStyle = this.getColumnTopStyle(workbook);//获取列头样式对象
+            HSSFCellStyle style = this.getStyle(workbook);                  //单元格样式对象
+
+    //          sheet.addMergedRegion(new CellRangeAddress(0, 1, 0, (rowName.length-1)));//合并单元格  
+    //          cellTiltle.setCellStyle(columnTopStyle);
+    //          cellTiltle.setCellValue(title);
+
+            // 定义所需列数
+            int columnNum = rowName.length;
+            HSSFRow rowRowName = sheet.createRow(0);                // 在索引2的位置创建行(最顶端的行开始的第二行)
+
+            // 将列头设置到sheet的单元格中
+            for(int n=0;n<columnNum;n++){
+                HSSFCell  cellRowName = rowRowName.createCell(n);               //创建列头对应个数的单元格
+                cellRowName.setCellType(HSSFCell.CELL_TYPE_STRING);             //设置列头单元格的数据类型
+                HSSFRichTextString text = new HSSFRichTextString(rowName[n]);
+                cellRowName.setCellValue(text);                                 //设置列头单元格的值
+                cellRowName.setCellStyle(columnTopStyle);                       //设置列头单元格样式
+            }
+
+            //将查询出的数据设置到sheet对应的单元格中
+            for(int i=0;i<dataList.size();i++){
+
+                Object[] obj = dataList.get(i);//遍历每个对象
+                HSSFRow row = sheet.createRow(i+1);//创建所需的行数（从第二行开始写数据）
+
+                for(int j=0; j<obj.length; j++){
+                    HSSFCell  cell = null;   //设置单元格的数据类型
+                    if(j == 0){
+                        cell = row.createCell(j,HSSFCell.CELL_TYPE_NUMERIC);
+                        cell.setCellValue(i+1); 
+                    }else{
+                        cell = row.createCell(j,HSSFCell.CELL_TYPE_STRING);
+                        if(!"".equals(obj[j]) && obj[j] != null){
+                            cell.setCellValue(obj[j].toString());                       //设置单元格的值
+                        }
+                    }
+                    cell.setCellStyle(style);                                   //设置单元格样式
+                }
+            }
+            //让列宽随着导出的列长自动适应
+            for (int colNum = 0; colNum < columnNum; colNum++) {
+                int columnWidth = sheet.getColumnWidth(colNum) / 256;
+                for (int rowNum = 0; rowNum < sheet.getLastRowNum(); rowNum++) {
+                    HSSFRow currentRow;
+                    //当前行未被使用过
+                    if (sheet.getRow(rowNum) == null) {
+                        currentRow = sheet.createRow(rowNum);
+                    } else {
+                        currentRow = sheet.getRow(rowNum);
+                    }
+     //                 if (currentRow.getCell(colNum) != null) {
+     //                     HSSFCell currentCell = currentRow.getCell(colNum);
+    //                      if (currentCell.getCellType() == HSSFCell.CELL_TYPE_STRING) {
+    //                          int length =     currentCell.getStringCellValue().getBytes().length;
+    //                          if (columnWidth < length) {
+    //                              columnWidth = length;
+    //                          }
+    //                      }
+    //                  }
+                    if (currentRow.getCell(colNum) != null) {
+                        HSSFCell currentCell = currentRow.getCell(colNum);
+                        if (currentCell.getCellType() == HSSFCell.CELL_TYPE_STRING) {
+                            int length = 0;
+                            try {
+                                length = currentCell.getStringCellValue().getBytes().length;
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                            if (columnWidth < length) {
+                                columnWidth = length;
+                            }
+                        }
+                    }
+
+                }
+                if(colNum == 0){
+                    sheet.setColumnWidth(colNum, (columnWidth-2) * 256);
+                }else{
+                    sheet.setColumnWidth(colNum, (columnWidth+4) * 256);
+                }
+            }
+            if(workbook !=null){
+                try{
+                    workbook.write(out);
+                }catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        finally{
+            out.close();
+        }
+
+    }
+
+    /* 
+     * 列头单元格样式
+     */    
+    public HSSFCellStyle getColumnTopStyle(HSSFWorkbook workbook) {
+
+          // 设置字体
+          HSSFFont font = workbook.createFont();
+          //设置字体大小
+          font.setFontHeightInPoints((short)11);
+          //字体加粗
+          font.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);
+          //设置字体名字 
+          font.setFontName("Courier New");
+          //设置样式; 
+          HSSFCellStyle style = workbook.createCellStyle();
+          //设置底边框; 
+          style.setBorderBottom(HSSFCellStyle.BORDER_THIN);
+          //设置底边框颜色;  
+          style.setBottomBorderColor(HSSFColor.BLACK.index);
+          //设置左边框;   
+          style.setBorderLeft(HSSFCellStyle.BORDER_THIN);
+          //设置左边框颜色; 
+          style.setLeftBorderColor(HSSFColor.BLACK.index);
+          //设置右边框; 
+          style.setBorderRight(HSSFCellStyle.BORDER_THIN);
+          //设置右边框颜色; 
+          style.setRightBorderColor(HSSFColor.BLACK.index);
+          //设置顶边框; 
+          style.setBorderTop(HSSFCellStyle.BORDER_THIN);
+          //设置顶边框颜色;  
+          style.setTopBorderColor(HSSFColor.BLACK.index);
+          //在样式用应用设置的字体;  
+          style.setFont(font);
+          //设置自动换行; 
+          style.setWrapText(false);
+          //设置水平对齐的样式为居中对齐;  
+          style.setAlignment(HSSFCellStyle.ALIGN_CENTER);
+          //设置垂直对齐的样式为居中对齐; 
+          style.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);
+
+          return style;
+
+    }
+
+    /*  
+     * 列数据信息单元格样式
+     */  
+    public HSSFCellStyle getStyle(HSSFWorkbook workbook) {
+          // 设置字体
+          HSSFFont font = workbook.createFont();
+          //设置字体大小
+          //font.setFontHeightInPoints((short)10);
+          //字体加粗
+          //font.setBoldweight(HSSFFont.BOLDWEIGHT_BOLD);
+          //设置字体名字 
+          font.setFontName("Courier New");
+          //设置样式; 
+          HSSFCellStyle style = workbook.createCellStyle();
+          //设置底边框; 
+          style.setBorderBottom(HSSFCellStyle.BORDER_THIN);
+          //设置底边框颜色;  
+          style.setBottomBorderColor(HSSFColor.BLACK.index);
+          //设置左边框;   
+          style.setBorderLeft(HSSFCellStyle.BORDER_THIN);
+          //设置左边框颜色; 
+          style.setLeftBorderColor(HSSFColor.BLACK.index);
+          //设置右边框; 
+          style.setBorderRight(HSSFCellStyle.BORDER_THIN);
+          //设置右边框颜色; 
+          style.setRightBorderColor(HSSFColor.BLACK.index);
+          //设置顶边框; 
+          style.setBorderTop(HSSFCellStyle.BORDER_THIN);
+          //设置顶边框颜色;  
+          style.setTopBorderColor(HSSFColor.BLACK.index);
+          //在样式用应用设置的字体;  
+          style.setFont(font);
+          //设置自动换行; 
+          style.setWrapText(false);
+          //设置水平对齐的样式为居中对齐;  
+          style.setAlignment(HSSFCellStyle.ALIGN_CENTER);
+          //设置垂直对齐的样式为居中对齐; 
+          style.setVerticalAlignment(HSSFCellStyle.VERTICAL_CENTER);
+
+          return style;
+
+          }
+       }
+
+此时就可以将数据完美导出来：
