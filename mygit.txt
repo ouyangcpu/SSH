@@ -19,6 +19,12 @@ POI 分别设置单元格背景颜色 - 程序员之路 - ITeye技术网站
 http://xiaohewoai.iteye.com/blog/1300817
 POI使用cell.getCellStyle()设置指定单元格颜色其它没有指定的单元格也会变色 - 3月3的风筝 - 博客频道 - CSDN.NET
 http://blog.csdn.net/sanyuesan0000/article/details/17427867
+ExtJS Combobox 属性详解和默认值选中 - chenlaoyang的专栏 - 博客频道 - CSDN.NET
+http://blog.csdn.net/chenlaoyang/article/details/9222859
+如何给ext的下拉框设默认值？ - ITeye问答
+http://www.iteye.com/problems/41944
+ExtJs之combobox详解 - chenlaoyang的专栏 - 博客频道 - CSDN.NET
+http://blog.csdn.net/chenlaoyang/article/details/9233835
 前台代码：
 
     <script type="text/javascript">
