@@ -7,8 +7,14 @@ select (case when description  is null then 0 else description end) description 
 https://github.com/extjs-doc-cn/ext4api
 https://wenku.baidu.com/view/59c6474e33687e21af45a996.html
 http://blog.csdn.net/xuanzhangran/article/details/54709221
+java poi - 教程
+http://blog.csdn.net/LinBilin_/article/category/6185548
 POI 可以为Excel单元格设置不同的字体&颜色吗？如何设置？-CSDN论坛-CSDN.NET-中国最大的IT技术社区
 http://bbs.csdn.net/topics/360048096
+POI 导出excel 字体颜色怎么设置？-CSDN论坛-CSDN.NET-中国最大的IT技术社区
+http://bbs.csdn.net/topics/360067530
+java设置Excel单元格格式 大全 POI - macwhirr123 - 博客频道 - CSDN.NET
+http://blog.csdn.net/macwhirr123/article/details/7490649
 前台代码：
 
     <script type="text/javascript">
