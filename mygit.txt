@@ -15,6 +15,10 @@ POI 导出excel 字体颜色怎么设置？-CSDN论坛-CSDN.NET-中国最大的I
 http://bbs.csdn.net/topics/360067530
 java设置Excel单元格格式 大全 POI - macwhirr123 - 博客频道 - CSDN.NET
 http://blog.csdn.net/macwhirr123/article/details/7490649
+POI 分别设置单元格背景颜色 - 程序员之路 - ITeye技术网站
+http://xiaohewoai.iteye.com/blog/1300817
+POI使用cell.getCellStyle()设置指定单元格颜色其它没有指定的单元格也会变色 - 3月3的风筝 - 博客频道 - CSDN.NET
+http://blog.csdn.net/sanyuesan0000/article/details/17427867
 前台代码：
 
     <script type="text/javascript">
